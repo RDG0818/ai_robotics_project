@@ -5,7 +5,7 @@ from ultralytics import YOLO
 model = YOLO("yolov8n.pt")
 
 # Open your default webcam (0 = default camera)
-cap = cv2.VideoCapture("9048814-uhd_4096_2160_25fps.mp4")
+cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("Error: Could not open webcam.")
     exit()
