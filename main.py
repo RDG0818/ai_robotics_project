@@ -1,79 +1,101 @@
 import cv2
 import numpy as np
+import rospy
+from geometry_msgs.msg import Twist
+from time import sleep
 
-# Open the camera
-cap = cv2.VideoCapture(0)
+class TwistPublisher():
+    def __init__(self):
+        rospy.init_node("twist_pub")
+        self.pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
 
-# Check if the camera is opened correctly
-if not cap.isOpened():
-    print("Cannot open camera")
-    exit()
+    def move(self, cmd_x, cmd_z):
+        msg = Twist()
+        msg.linear.x = cmd_x
+        msg.angular.z = cmd_z
+        self.pub.publish(msg)
+        rospy.loginfo("Published Twist: linear.x=%f angular.z=%f", cmd_x, cmd_z)
 
-while True:
-    # Capture frame-by-frame
+def main():
+    DEVICE_INDEX = 0
+    cap = cv2.VideoCapture(DEVICE_INDEX)
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+
+    if not cap.isOpened():
+        rospy.logerr(f"Cannot open camera at index {DEVICE_INDEX}")
+        return
+
+    bot = TwistPublisher()
+    rospy.sleep(2.0) # Give time for publisher to connect
+
+    # Get frame dimensions
     ret, frame = cap.read()
-
-    # if frame is read correctly ret is True
     if not ret:
-        sleep(0.25)
-        continue  
+        rospy.logerr("Cannot read from camera")
+        cap.release()
+        return
+    frame_height, frame_width, _ = frame.shape
+    center_x = frame_width // 2
+    center_tolerance = 50 
 
-    # Convert BGR to HSV
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    rate = rospy.Rate(10) # 10hz
+    while not rospy.is_shutdown():
+        ret, frame = cap.read()
 
-    # Define the range of bright orange to bright red color in HSV
-    lower_color = np.array([0, 180, 180])
-    upper_color = np.array([255, 255, 255])
+        if not ret or frame is None:
+            rospy.logwarn("Failed to grab frame")
+            sleep(0.25)
+            continue  
 
-    # Threshold the HSV image to get only bright orange to bright red colors
-    mask = cv2.inRange(hsv, lower_color, upper_color)
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    # Find contours in the mask
-    # For this problem, finding the largest contour is a simpler and more direct approach
-    # than implementing a full Euclidean clustering algorithm.
-    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # Orange color detection range
+        lower_color = np.array([5, 180, 180])
+        upper_color = np.array([255, 255, 255])
 
-    # Set a minimum contour area to filter out small objects
-    min_contour_area = 500  # Adjust this value as needed
+        mask = cv2.inRange(hsv, lower_color, upper_color)
 
-    if contours:
-        # Filter contours by area and find the largest one
-        large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_contour_area]
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        min_contour_area = 500
         
-        if large_contours:
-            largest_contour = max(large_contours, key=cv2.contourArea)
+        if contours:
+            large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_contour_area]
             
-            # Calculate moments for the largest contour
-            M = cv2.moments(largest_contour)
-            
-            # Calculate x,y coordinate of center
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
+            if large_contours:
+                largest_contour = max(large_contours, key=cv2.contourArea)
                 
-                # Draw a circle at the center
-                cv2.circle(frame, (cX, cY), 5, (255, 255, 255), -1)
-                # Display the coordinates on the frame
-                cv2.putText(frame, f"({cX}, {cY})", (cX - 25, cY - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-            
-            # Bitwise-AND mask and original image if a large contour is found
-            res = cv2.bitwise_and(frame, frame, mask=mask)
+                M = cv2.moments(largest_contour)
+                
+                if M["m00"] != 0:
+                    cX = int(M["m10"] / M["m00"])
+                    
+                    # Centering logic
+                    if cX < center_x - center_tolerance:
+                        # Turn right
+                        bot.move(0.0, -0.3)
+                    elif cX > center_x + center_tolerance:
+                        # Turn left
+                        bot.move(0.0, 0.3)
+                    else:
+                        # Centered
+                        bot.move(0.0, 0.0)
+                else:
+                    # case where m00 is 0 but contour exists
+                    bot.move(0.0, 0.0)
+            else:
+                bot.move(0.0, 0.0) # No large contour, stop
         else:
-            # If no large contour is found, display the original frame
-            res = frame
-    else:
-        # If no contours are found at all, display the original frame
-        res = frame
-    
-    # Display the resulting frame
-    cv2.imshow('Original Frame', frame)
-    cv2.imshow('Mask', mask)
-    cv2.imshow('Detected Color', res)
+            bot.move(0.0, 0.0) # No contours, stop
+        
+        rate.sleep()
 
-    # Break the loop if 'q' is pressed
-    if cv2.waitKey(1) == ord('q'):
-        break
+    # Stop the robot and release resources
+    bot.move(0.0, 0.0)
+    cap.release()
 
-# When everything done, release the capture
-cap.release()
-cv2.destroyAllWindows()
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
