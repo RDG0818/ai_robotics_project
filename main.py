@@ -15,19 +15,18 @@ while True:
 
     # if frame is read correctly ret is True
     if not ret:
-        print("Can't receive frame (stream end?). Exiting ...")
-        break
+        sleep(0.25)
+        continue  
 
     # Convert BGR to HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    # Define the range of orange color in HSV
-    # These values can be tweaked to detect different shades of orange
-    lower_orange = np.array([10, 100, 100])
-    upper_orange = np.array([25, 255, 255])
+    # Define the range of bright orange to bright red color in HSV
+    lower_color = np.array([0, 200, 200])
+    upper_color = np.array([20, 255, 255])
 
-    # Threshold the HSV image to get only orange colors
-    mask = cv2.inRange(hsv, lower_orange, upper_orange)
+    # Threshold the HSV image to get only bright orange to bright red colors
+    mask = cv2.inRange(hsv, lower_color, upper_color)
 
     # Bitwise-AND mask and original image
     res = cv2.bitwise_and(frame, frame, mask=mask)
