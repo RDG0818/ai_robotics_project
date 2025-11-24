@@ -22,7 +22,7 @@ def main():
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
 
     if not cap.isOpened():
-        rospy.logerr(f"Cannot open camera at index {DEVICE_INDEX}")
+        rospy.logerr("Cannot open camera")
         return
 
     bot = TwistPublisher()
