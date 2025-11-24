@@ -22,7 +22,7 @@ while True:
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
     # Define the range of bright orange to bright red color in HSV
-    lower_color = np.array([0, 200, 200])
+    lower_color = np.array([0, 180, 180])
     upper_color = np.array([255, 255, 255])
 
     # Threshold the HSV image to get only bright orange to bright red colors
@@ -44,21 +44,27 @@ while True:
             largest_contour = max(large_contours, key=cv2.contourArea)
             
             # Calculate moments for the largest contour
-        M = cv2.moments(largest_contour)
-        
-        # Calculate x,y coordinate of center
-        if M["m00"] != 0:
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
+            M = cv2.moments(largest_contour)
             
-            # Draw a circle at the center
-            cv2.circle(frame, (cX, cY), 5, (255, 255, 255), -1)
-            # Display the coordinates on the frame
-            cv2.putText(frame, f"({cX}, {cY})", (cX - 25, cY - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-
-    # Bitwise-AND mask and original image
-    res = cv2.bitwise_and(frame, frame, mask=mask)
-
+            # Calculate x,y coordinate of center
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                
+                # Draw a circle at the center
+                cv2.circle(frame, (cX, cY), 5, (255, 255, 255), -1)
+                # Display the coordinates on the frame
+                cv2.putText(frame, f"({cX}, {cY})", (cX - 25, cY - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            
+            # Bitwise-AND mask and original image if a large contour is found
+            res = cv2.bitwise_and(frame, frame, mask=mask)
+        else:
+            # If no large contour is found, display the original frame
+            res = frame
+    else:
+        # If no contours are found at all, display the original frame
+        res = frame
+    
     # Display the resulting frame
     cv2.imshow('Original Frame', frame)
     cv2.imshow('Mask', mask)
