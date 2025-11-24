@@ -78,8 +78,18 @@ def main():
                         # Turn left
                         bot.move(0.0, 0.3)
                     else:
-                        # Centered
-                        bot.move(0.0, 0.0)
+                        # Centered, now check size
+                        contour_area = cv2.contourArea(largest_contour)
+                        sleep(0.5) 
+                        if (contour_area / (frame_width * frame_height)) < 0.5:
+                            # Move forward
+                            rospy.loginfo("Object centered, moving forward.")
+                            bot.move(0.2, 0.0)
+                        else:
+                            # Stop and sleep for a second
+                            rospy.loginfo("Object is large enough. Stopping and sleeping.")
+                            bot.move(0.0, 0.0)
+                            sleep(0.5)
                 else:
                     # case where m00 is 0 but contour exists
                     bot.move(0.0, 0.0)
