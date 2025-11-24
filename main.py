@@ -36,7 +36,7 @@ def main():
         return
     frame_height, frame_width, _ = frame.shape
     center_x = frame_width // 2
-    center_tolerance = 50 
+    center_tolerance = 120 
 
     rate = rospy.Rate(10) # 10hz
     while not rospy.is_shutdown():
@@ -73,10 +73,10 @@ def main():
                     # Centering logic
                     if cX < center_x - center_tolerance:
                         # Turn right
-                        bot.move(0.0, -0.3)
+                        bot.move(0.0, 0.3)
                     elif cX > center_x + center_tolerance:
                         # Turn left
-                        bot.move(0.0, 0.3)
+                        bot.move(0.0, -0.3)
                     else:
                         # Centered, now check size
                         contour_area = cv2.contourArea(largest_contour)
