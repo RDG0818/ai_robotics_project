@@ -1,35 +1,46 @@
 import cv2
-from ultralytics import YOLO
+import numpy as np
 
-# Load YOLOv8 model (you can change to yolov8s.pt for better accuracy)
-model = YOLO("yolov8n.pt")
-
-# Open your default webcam (0 = default camera)
+# Open the camera
 cap = cv2.VideoCapture(0)
+
+# Check if the camera is opened correctly
 if not cap.isOpened():
-    print("Error: Could not open webcam.")
+    print("Cannot open camera")
     exit()
 
 while True:
+    # Capture frame-by-frame
     ret, frame = cap.read()
+
+    # if frame is read correctly ret is True
     if not ret:
-        print("Error: Failed to grab frame.")
+        print("Can't receive frame (stream end?). Exiting ...")
         break
 
-    # Run YOLO detection
-    results = model(frame, verbose=False)
+    # Convert BGR to HSV
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    # Draw results on the frame
-    annotated_frame = results[0].plot()
+    # Define the range of orange color in HSV
+    # These values can be tweaked to detect different shades of orange
+    lower_orange = np.array([10, 100, 100])
+    upper_orange = np.array([25, 255, 255])
 
-    # Show the output
-    cv2.imshow("YOLOv8 Live Detection", annotated_frame)
+    # Threshold the HSV image to get only orange colors
+    mask = cv2.inRange(hsv, lower_orange, upper_orange)
 
-    # Press 'q' to quit
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    # Bitwise-AND mask and original image
+    res = cv2.bitwise_and(frame, frame, mask=mask)
+
+    # Display the resulting frame
+    cv2.imshow('Original Frame', frame)
+    cv2.imshow('Mask', mask)
+    cv2.imshow('Detected Orange', res)
+
+    # Break the loop if 'q' is pressed
+    if cv2.waitKey(1) == ord('q'):
         break
 
-# Clean up
+# When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()
-
